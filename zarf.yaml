@@ -1,6 +1,7 @@
 kind: ZarfPackageConfig
 metadata:
   name: base
+  version: 0.3.1+261010
   description: OpenDefence base operators, mesh identity, and ingress TLS
 values:
   files:
