@@ -1,3 +1,5 @@
+# This workflow is managed by gh actions-lock.
+
 on:
   pull_request:
   workflow_dispatch: # Allow manual triggering
@@ -7,12 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     name: Pre-commit
     steps:
-      - uses: actions/checkout@v6
-      - uses: j178/prek-action@5337cb91e0fa35a7ff31b9ca345126d8bbbcdf16
+      - uses: actions/checkout@v6.1.0
+      - uses: j178/prek-action@v2.0.6
 
   bumpversion-check:
     runs-on: ubuntu-latest
     name: Validate .bumpversion.toml
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.1.0
       - uses: pvarki/config-ci-library/.github/actions/validate-bumpversion@main

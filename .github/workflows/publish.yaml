@@ -1,0 +1,73 @@
+# This workflow is managed by gh actions-lock.
+
+name: Publish Zarf package
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: zarf-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: arc-runner-set
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: jdx/mise-action@v5.1.1
+        with:
+          cache: true
+
+      - name: Resolve version
+        run: |
+          set -euo pipefail
+          version="$(bump-my-version show current_version)"
+          version_tag="${version//+/-}"
+          if [[ ! "$version_tag" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]]; then
+            echo "Missing version or invalid OCI version tag: $version_tag" >&2
+            exit 1
+          fi
+          echo "VERSION_TAG=$version_tag" >> "$GITHUB_ENV"
+
+      - name: Lint and build package
+        run: |
+          set -euo pipefail
+          zarf dev lint .
+          build_dir="$(mktemp -d "$RUNNER_TEMP/zarf-build.XXXXXX")"
+          task build:package ARCH=amd64 BUILD_DIR="$build_dir"
+          shopt -s nullglob
+          packages=("$build_dir"/zarf-package-*.tar.zst)
+          if [[ ${#packages[@]} -ne 1 ]]; then
+            echo "Expected exactly one Zarf package archive" >&2
+            exit 1
+          fi
+          echo "PACKAGE=${packages[0]}" >> "$GITHUB_ENV"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish version and latest
+        run: |
+          set -euo pipefail
+          zarf package publish "$PACKAGE" oci://ghcr.io/opendefence \
+            --tag "$VERSION_TAG" --confirm
+          zarf package publish "$PACKAGE" oci://ghcr.io/opendefence \
+            --tag latest --confirm
+          {
+            printf '## Published Zarf package\n\n'
+            printf -- "- \`%s\`\n" "ghcr.io/opendefence/base:${VERSION_TAG}" "ghcr.io/opendefence/base:latest"
+          } >> "$GITHUB_STEP_SUMMARY"
