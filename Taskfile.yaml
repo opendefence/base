@@ -1,0 +1,49 @@
+# Local kind cluster and the registries it pulls through.
+# Registry and cluster defaults live in the included taskfiles so those files
+# can be included remotely without this file supplying them.
+version: "3"
+
+includes:
+  registries:
+    aliases: [r]
+    taskfile: ./taskfiles/registries.yaml
+    dir: "{{.ROOT_DIR}}"
+  cluster:
+    aliases: [c]
+    taskfile: ./taskfiles/cluster.yaml
+    dir: "{{.ROOT_DIR}}"
+
+tasks:
+  default:
+    desc: List available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  up:
+    desc: Start the registries and the kind cluster
+    cmds:
+      - task: registries:up
+      - task: cluster:create
+      - task: registries:connect
+      - task: cluster:configure-mirrors
+      - task: cluster:document-local-registry
+
+  down:
+    desc: Delete the kind cluster and leave the registries running
+    cmds:
+      - task: registries:disconnect
+      - task: cluster:down
+
+  reset:
+    desc: Delete the kind cluster, owned registry containers, and anonymous volumes
+    cmds:
+      - task: down
+      - task: registries:down
+
+  status:
+    aliases: [s]
+    desc: Show cluster and registry status
+    cmds:
+      - task: cluster:status
+      - task: registries:status
