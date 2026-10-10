@@ -5,3 +5,6 @@ serialize = ["{major}.{minor}.{patch}+{build}"]
 
 [tool.bumpversion.parts.build]
 calver_format = "{0Y}{0M}{0D}"
+
+[[tool.bumpversion.files]]
+filename = "zarf.yaml"
