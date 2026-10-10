@@ -102,7 +102,7 @@ server = "https://ghcr.io"
 
 ## Base package
 
-`zarf.yaml` is the single package definition, named `opendefence-base`. Components deploy sequentially: CloudNativePG, cert-manager, External Secrets, Traefik/Gateway API CRDs, trust-manager, PKI, Linkerd identity, Linkerd, then Traefik. Chart pins live in `zarf.yaml`; chart configuration lives in `helm-values/`, and OpenDefence resources are raw YAML in `manifests/`. Only `manifests/public-pki.yaml` uses Go templates. There is no separate `dev.yaml` or Kustomize overlay.
+`zarf.yaml` is the single package definition, named `base`. Components deploy sequentially: CloudNativePG, cert-manager, External Secrets, Traefik/Gateway API CRDs, trust-manager, PKI, Linkerd identity, Linkerd, then Traefik. Chart pins live in `zarf.yaml`; chart configuration lives in `helm-values/`, and OpenDefence resources are raw YAML in `manifests/`. Only `manifests/public-pki.yaml` uses Go templates.
 
 The downstream contract is:
 
@@ -134,20 +134,20 @@ task build:package ARCH=amd64 BUILD_DIR=.build
 Local development uses `zarf dev deploy` in connected mode without `zarf init` or image pushes; nodes pull through registry mirrors where configured. `zarf package deploy` installs a built archive or OCI package. The current definition targets connected deployment; before building a fully offline package, use `build:find-images` to populate component `images:` lists, then create the package and initialize the target with Zarf. No offline image inventory is baked in yet.
 
 ```sh
-task base:install BASE_PACKAGE=/absolute/path/to/zarf-package-opendefence-base-amd64.tar.zst
+task base:install BASE_PACKAGE=/absolute/path/to/zarf-package-base-amd64.tar.zst
 task base:install BASE_VERSION=<published-version>
 task base:remove
 ```
 
-`base:install` defaults to `oci://ghcr.io/opendefence/base/opendefence-base:<BASE_VERSION>`. A version must already be published; this change does not publish a package. Override `BASE_PACKAGE` to use a local archive or another OCI reference. `base:remove` removes the package without requiring its creation settings. Root `down` and `reset` still delete the cluster rather than separately removing the package.
+`base:install` defaults to `oci://ghcr.io/opendefence/base:<BASE_VERSION>`. A version must already be published; this change does not publish a package. Override `BASE_PACKAGE` to use a local archive or another OCI reference. `base:remove` removes the package without requiring its creation settings. Root `down` and `reset` still delete the cluster rather than separately removing the package.
 
-| Base setting       | Default                                                          |
-| ------------------ | ---------------------------------------------------------------- |
-| `BASE_VERSION`     | empty, required unless `BASE_PACKAGE` is overridden              |
-| `BASE_PACKAGE`     | `oci://ghcr.io/opendefence/base/opendefence-base:<BASE_VERSION>` |
-| `BASE_ISSUER`      | empty, package default (`acme`); `ca` for local CA mode          |
-| `BASE_VALUES_FILE` | empty, optional deployment values file                           |
-| `KUBE_CONTEXT`     | `kind-<CLUSTER_NAME>`                                            |
+| Base setting       | Default                                                 |
+| ------------------ | ------------------------------------------------------- |
+| `BASE_VERSION`     | empty, required unless `BASE_PACKAGE` is overridden     |
+| `BASE_PACKAGE`     | `oci://ghcr.io/opendefence/base:<BASE_VERSION>`         |
+| `BASE_ISSUER`      | empty, package default (`acme`); `ca` for local CA mode |
+| `BASE_VALUES_FILE` | empty, optional deployment values file                  |
+| `KUBE_CONTEXT`     | `kind-<CLUSTER_NAME>`                                   |
 
 Package values precedence is baked defaults, deployment values files, then `--set-values`. `base:install` passes `issuer.type` through `--set-values` only when `BASE_ISSUER` is set, so it wins over `BASE_VALUES_FILE`; everything else, such as the ACME contact or server, comes from the values file. Build tasks use `VALUES_FILE` (default `values/local-dev.yaml`), `BUILD_DIR` (default `.build`), and `ARCH` (default `amd64`). Zarf has no kube-context flag: deploy, remove, and status guard that the current context equals `KUBE_CONTEXT`; switch it explicitly before running them.
 

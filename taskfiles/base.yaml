@@ -4,7 +4,7 @@ vars:
   CLUSTER_NAME: '{{.CLUSTER_NAME | default "opendefence-dev"}}'
   KUBE_CONTEXT: '{{.KUBE_CONTEXT | default (printf "kind-%s" .CLUSTER_NAME)}}'
   BASE_VERSION: '{{.BASE_VERSION | default ""}}'
-  BASE_PACKAGE: '{{.BASE_PACKAGE | default (printf "oci://ghcr.io/opendefence/base/opendefence-base:%s" .BASE_VERSION)}}'
+  BASE_PACKAGE: '{{.BASE_PACKAGE | default (printf "oci://ghcr.io/opendefence/base:%s" .BASE_VERSION)}}'
   BASE_ISSUER: '{{.BASE_ISSUER | default ""}}'
   BASE_VALUES_FILE: '{{.BASE_VALUES_FILE | default ""}}'
 
@@ -19,7 +19,7 @@ tasks:
         msg: kubectl is not on PATH
       - sh: test "$(kubectl config current-context)" = {{.KUBE_CONTEXT | shellQuote}}
         msg: Switch kubectl to the selected KUBE_CONTEXT before using Zarf
-      - sh: test -n {{.BASE_VERSION | shellQuote}} || test {{.BASE_PACKAGE | shellQuote}} != 'oci://ghcr.io/opendefence/base/opendefence-base:'
+      - sh: test -n {{.BASE_VERSION | shellQuote}} || test {{.BASE_PACKAGE | shellQuote}} != 'oci://ghcr.io/opendefence/base:'
         msg: Set BASE_VERSION or BASE_PACKAGE before installing the base
     cmds:
       - zarf package deploy {{.BASE_PACKAGE | shellQuote}} --connected --confirm {{if .BASE_ISSUER}}--set-values {{printf "issuer.type=%s" .BASE_ISSUER | shellQuote}}{{end}} {{if .BASE_VALUES_FILE}}--values {{.BASE_VALUES_FILE | shellQuote}}{{end}}
@@ -35,7 +35,7 @@ tasks:
       - sh: test "$(kubectl config current-context)" = {{.KUBE_CONTEXT | shellQuote}}
         msg: Switch kubectl to the selected KUBE_CONTEXT before using Zarf
     cmds:
-      - zarf package remove opendefence-base --confirm
+      - zarf package remove base --confirm
 
   status:
     desc: List Zarf packages in the selected current kube-context
