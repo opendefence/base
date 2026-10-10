@@ -1,0 +1,108 @@
+kind: ZarfPackageConfig
+metadata:
+  name: opendefence-base
+  description: OpenDefence base operators, mesh identity, and ingress TLS
+values:
+  files:
+    - values/values.yaml
+  schema: values/values.schema.json
+components:
+  - name: cloudnative-pg
+    required: true
+    manifests:
+      - name: cloudnative-pg
+        serverSideApply: "true"
+        files:
+          - https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.28/releases/cnpg-1.27.1.yaml
+  - name: cert-manager
+    required: true
+    manifests:
+      - name: cert-manager
+        serverSideApply: "true"
+        files:
+          - https://github.com/cert-manager/cert-manager/releases/download/v1.19.2/cert-manager.yaml
+  - name: external-secrets
+    required: true
+    charts:
+      - name: external-secrets
+        releaseName: external-secrets-operator
+        namespace: external-secrets-system
+        version: 1.1.1
+        url: https://charts.external-secrets.io/
+  - name: traefik-crds
+    required: true
+    charts:
+      - name: traefik-crds
+        namespace: traefik-system
+        version: 1.13.0
+        url: https://traefik.github.io/charts
+        valuesFiles:
+          - helm-values/traefik-crds.yaml
+  - name: trust-manager
+    required: true
+    charts:
+      - name: trust-manager
+        namespace: cert-manager
+        version: v0.20.2
+        url: oci://quay.io/jetstack/charts/trust-manager
+        valuesFiles:
+          - helm-values/trust-manager.yaml
+  - name: pki
+    required: true
+    manifests:
+      - name: internal-pki
+        namespace: cert-manager
+        files:
+          - manifests/pki/selfsigned-issuer.yaml
+          - manifests/pki/internal-root-ca.yaml
+          - manifests/pki/internal-root-issuer.yaml
+      - name: public-pki
+        template: true
+        files:
+          - manifests/public-pki.yaml
+    healthChecks:
+      - apiVersion: cert-manager.io/v1
+        kind: Certificate
+        name: internal-root-ca
+        namespace: cert-manager
+  - name: linkerd-identity
+    required: true
+    manifests:
+      - name: linkerd-identity
+        files:
+          - manifests/linkerd-identity/namespace.yaml
+          - manifests/linkerd-identity/issuer.yaml
+          - manifests/linkerd-identity/trust-roots.yaml
+    healthChecks:
+      - apiVersion: cert-manager.io/v1
+        kind: Certificate
+        name: linkerd-identity-issuer
+        namespace: linkerd
+      - apiVersion: v1
+        kind: ConfigMap
+        name: linkerd-identity-trust-roots
+        namespace: linkerd
+  - name: linkerd
+    required: true
+    charts:
+      - name: linkerd-crds
+        namespace: linkerd
+        version: 1.8.0
+        url: https://helm.linkerd.io/stable
+        valuesFiles:
+          - helm-values/linkerd-crds.yaml
+      - name: linkerd-control-plane
+        namespace: linkerd
+        version: 1.16.11
+        url: https://helm.linkerd.io/stable
+        valuesFiles:
+          - helm-values/linkerd-control-plane.yaml
+  - name: traefik
+    required: true
+    charts:
+      - name: traefik
+        namespace: traefik-system
+        version: 38.0.1
+        url: https://traefik.github.io/charts
+        valuesFiles:
+          - helm-values/traefik.yaml

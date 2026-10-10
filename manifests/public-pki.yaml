@@ -1,0 +1,38 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: public-issuer
+spec:
+{{- if eq .Values.issuer.type "acme" }}
+  acme:
+    email: {{ .Values.issuer.acme.email | quote }}
+    server: {{ .Values.issuer.acme.server | quote }}
+    privateKeySecretRef:
+      name: public-issuer-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik
+{{- else }}
+  ca:
+    secretName: public-root-secret
+{{- end }}
+{{- if eq .Values.issuer.type "ca" }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: public-root-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: {{ .Values.issuer.ca.commonName | quote }}
+  secretName: public-root-secret
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+{{- end }}
