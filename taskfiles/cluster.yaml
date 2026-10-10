@@ -1,0 +1,168 @@
+version: "3"
+
+vars:
+  CLUSTER_NAME: '{{.CLUSTER_NAME | default "opendefence-dev"}}'
+  KIND_NETWORK: '{{.KIND_NETWORK | default (printf "kind-%s" .CLUSTER_NAME)}}'
+  REGISTRY_PORT: '{{.REGISTRY_PORT | default "5000"}}'
+  LOCAL_REGISTRY_NAME: '{{.LOCAL_REGISTRY_NAME | default "local-registry"}}'
+  KIND_CONFIG_FILE: '{{.KIND_CONFIG_FILE | default ""}}'
+  CERTS_D_DIR: '{{.CERTS_D_DIR | default "/etc/containerd/certs.d"}}'
+  KUBE_CONTEXT: '{{.KUBE_CONTEXT | default (printf "kind-%s" .CLUSTER_NAME)}}'
+  PULL_THROUGH_CACHES:
+    map:
+      docker.io:
+        container: proxy-dockerhub
+        upstream: https://registry-1.docker.io
+      ghcr.io:
+        container: proxy-ghcr
+        upstream: https://ghcr.io
+  CONTAINER_RUNTIME:
+    sh: |
+      if [ -n "${CONTAINER_RUNTIME:-}" ]; then
+        printf '%s' "$CONTAINER_RUNTIME"
+      elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 && ! docker version 2>&1 | grep -qi podman; then
+        printf '%s' docker
+      elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+        printf '%s' podman
+      fi
+
+env:
+  KIND_EXPERIMENTAL_PROVIDER: "{{.CONTAINER_RUNTIME}}"
+  KIND_EXPERIMENTAL_DOCKER_NETWORK: "{{.KIND_NETWORK}}"
+  KIND_EXPERIMENTAL_PODMAN_NETWORK: "{{.KIND_NETWORK}}"
+  RUNTIME: "{{.CONTAINER_RUNTIME}}"
+  CLUSTER: "{{.CLUSTER_NAME}}"
+
+tasks:
+  create:
+    aliases: [up]
+    desc: Create the kind cluster if it is missing
+    preconditions: &tools
+      - sh: "{{.CONTAINER_RUNTIME | shellQuote}} info >/dev/null 2>&1"
+        msg: Start Docker or Podman, or select one with CONTAINER_RUNTIME
+      - sh: command -v kind >/dev/null
+        msg: kind is not on PATH
+    status:
+      - |
+        clusters=$(kind get clusters) || exit 1
+        printf '%s\n' "$clusters" | grep -Fx -- {{.CLUSTER_NAME | shellQuote}}
+    cmds:
+      - |
+        {{if .KIND_CONFIG_FILE}}
+        kind create cluster --name {{.CLUSTER_NAME | shellQuote}} --config {{.KIND_CONFIG_FILE | shellQuote}}
+        {{else}}
+        cat <<'EOF' | kind create cluster --name {{.CLUSTER_NAME | shellQuote}} --config -
+        kind: Cluster
+        apiVersion: kind.x-k8s.io/v1alpha4
+        containerdConfigPatches:
+          - |-
+            [plugins."io.containerd.grpc.v1.cri".registry]
+              config_path = "{{.CERTS_D_DIR}}"
+        EOF
+        {{end}}
+
+  configure-mirrors:
+    aliases: [mirrors]
+    desc: Write containerd hosts.toml on every existing node
+    preconditions: *tools
+    cmds:
+      - task: configure-nodes
+
+  document-local-registry:
+    aliases: [publish-registry]
+    desc: Publish the local-registry-hosting ConfigMap in an existing cluster
+    preconditions:
+      - sh: command -v kubectl >/dev/null
+        msg: kubectl is not on PATH
+    cmds:
+      - |
+        cat <<'EOF' | kubectl --context {{.KUBE_CONTEXT | shellQuote}} apply -f -
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: local-registry-hosting
+          namespace: kube-public
+        data:
+          localRegistryHosting.v1: |
+            host: "localhost:{{.REGISTRY_PORT}}"
+            help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
+        EOF
+
+  down:
+    desc: Delete only the selected kind cluster
+    preconditions: *tools
+    cmds:
+      - kind delete cluster --name {{.CLUSTER_NAME | shellQuote}}
+
+  status:
+    aliases: [s]
+    desc: Show the selected kind cluster without changing resources
+    preconditions: *tools
+    cmds:
+      - |
+        set -eu
+        clusters=$(kind get clusters)
+        if printf '%s\n' "$clusters" | grep -Fx -- "$CLUSTER" >/dev/null; then
+          kubectl --context {{.KUBE_CONTEXT | shellQuote}} get nodes
+        else
+          printf '%s: absent\n' "$CLUSTER"
+        fi
+
+  configure-nodes:
+    internal: true
+    vars:
+      NODES:
+        sh: kind get nodes --name {{.CLUSTER_NAME | shellQuote}}
+    cmds:
+      - test -n {{.NODES | shellQuote}} || { echo 'No kind nodes found; create the cluster first' >&2; exit 1; }
+      - for:
+          var: NODES
+          split: "\n"
+          as: NODE
+        task: configure-node
+        vars:
+          NODE: "{{.NODE}}"
+
+  configure-node:
+    internal: true
+    requires:
+      vars: [NODE]
+    cmds:
+      - task: write-hosts-toml
+        vars:
+          NODE: "{{.NODE}}"
+          REGISTRY_HOST: "localhost:{{.REGISTRY_PORT}}"
+          ENDPOINT: "http://{{.LOCAL_REGISTRY_NAME}}:{{.REGISTRY_PORT}}"
+          UPSTREAM: ""
+      - for: { var: PULL_THROUGH_CACHES }
+        task: write-hosts-toml
+        vars:
+          NODE: "{{.NODE}}"
+          REGISTRY_HOST: "{{.KEY}}"
+          ENDPOINT: "http://{{.ITEM.container}}:{{.REGISTRY_PORT}}"
+          UPSTREAM: "{{.ITEM.upstream}}"
+
+  write-hosts-toml:
+    internal: true
+    requires:
+      vars: [NODE, REGISTRY_HOST, ENDPOINT]
+    env:
+      NODE: "{{.NODE}}"
+      HOST_DIR: "{{.CERTS_D_DIR}}/{{.REGISTRY_HOST}}"
+    cmds:
+      - |
+        cat <<'EOF' | "$RUNTIME" exec -i "$NODE" sh -c '
+          set -eu
+          mkdir -p "$1"
+          temporary=$(mktemp "$1/.hosts.XXXXXX")
+          trap '\''rm -f "$temporary"'\'' EXIT
+          cat > "$temporary"
+          chmod 644 "$temporary"
+          mv "$temporary" "$1/hosts.toml"
+        ' sh "$HOST_DIR"
+        {{if .UPSTREAM}}server = "{{.UPSTREAM}}"
+        {{end}}
+        [host."{{.ENDPOINT}}"]
+        {{if .UPSTREAM}}  capabilities = ["pull", "resolve"]
+        {{end}}
+        EOF
