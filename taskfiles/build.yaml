@@ -1,0 +1,52 @@
+version: "3"
+
+vars:
+  CLUSTER_NAME: '{{.CLUSTER_NAME | default "opendefence-dev"}}'
+  KUBE_CONTEXT: '{{.KUBE_CONTEXT | default (printf "kind-%s" .CLUSTER_NAME)}}'
+  VALUES_FILE: '{{.VALUES_FILE | default "values/local-dev.yaml"}}'
+  BUILD_DIR: '{{.BUILD_DIR | default ".build"}}'
+  ARCH: '{{.ARCH | default "amd64"}}'
+
+tasks:
+  deploy:
+    desc: Deploy the checkout in connected mode to the selected current kube-context
+    dir: "{{.TASKFILE_DIR}}/.."
+    preconditions:
+      - sh: command -v zarf >/dev/null
+        msg: zarf is not on PATH
+      - sh: command -v kubectl >/dev/null
+        msg: kubectl is not on PATH
+      - sh: test "$(kubectl config current-context)" = {{.KUBE_CONTEXT | shellQuote}}
+        msg: Switch kubectl to the selected KUBE_CONTEXT before using Zarf
+    cmds:
+      - zarf dev deploy . --connected --values {{.VALUES_FILE | shellQuote}}
+
+  lint:
+    desc: Validate the Zarf package schema and pinned sources
+    dir: "{{.TASKFILE_DIR}}/.."
+    preconditions: &tools
+      - sh: command -v zarf >/dev/null
+        msg: zarf is not on PATH
+    cmds:
+      - zarf dev lint .
+
+  inspect:
+    desc: Render package manifests and charts without deploying
+    dir: "{{.TASKFILE_DIR}}/.."
+    preconditions: *tools
+    cmds:
+      - zarf dev inspect manifests . --values {{.VALUES_FILE | shellQuote}}
+
+  find-images:
+    desc: Discover images to maintain the offline package image lists
+    dir: "{{.TASKFILE_DIR}}/.."
+    preconditions: *tools
+    cmds:
+      - zarf dev find-images . --values {{.VALUES_FILE | shellQuote}}
+
+  package:
+    desc: Build a Zarf package archive from the checkout
+    dir: "{{.TASKFILE_DIR}}/.."
+    preconditions: *tools
+    cmds:
+      - zarf package create . --architecture {{.ARCH | shellQuote}} --confirm --output {{.BUILD_DIR | shellQuote}}
