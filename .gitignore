@@ -2,3 +2,6 @@
 .prettier_cache
 .idea
 *cache*
+.build/
+*.tar.zst
+zarf-sbom/

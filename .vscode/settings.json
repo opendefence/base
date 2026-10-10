@@ -4,6 +4,9 @@
       "**/Taskfile.yaml",
       "**/Taskfile.yml",
       "taskfiles/*.yaml"
+    ],
+    "https://raw.githubusercontent.com/zarf-dev/zarf/v0.87.0/zarf.schema.json": [
+      "zarf.yaml"
     ]
   }
 }
