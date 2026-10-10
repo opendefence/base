@@ -1,0 +1,7 @@
+issuer:
+  type: acme
+  acme:
+    email: letsencrypt@opendefence.fi
+    server: https://acme-v02.api.letsencrypt.org/directory
+  ca:
+    commonName: OpenDefence Public Root CA
