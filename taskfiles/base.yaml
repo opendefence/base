@@ -1,0 +1,65 @@
+version: "3"
+
+vars:
+  CLUSTER_NAME: '{{.CLUSTER_NAME | default "opendefence-dev"}}'
+  KUBE_CONTEXT: '{{.KUBE_CONTEXT | default (printf "kind-%s" .CLUSTER_NAME)}}'
+  BASE_VERSION: '{{.BASE_VERSION | default ""}}'
+  BASE_PACKAGE: '{{.BASE_PACKAGE | default (printf "oci://ghcr.io/opendefence/base/opendefence-base:%s" .BASE_VERSION)}}'
+  BASE_ISSUER: '{{.BASE_ISSUER | default ""}}'
+  BASE_VALUES_FILE: '{{.BASE_VALUES_FILE | default ""}}'
+
+tasks:
+  install:
+    aliases: [up]
+    desc: Deploy the base package to the selected current kube-context
+    preconditions: &tools
+      - sh: command -v zarf >/dev/null
+        msg: zarf is not on PATH
+      - sh: command -v kubectl >/dev/null
+        msg: kubectl is not on PATH
+      - sh: test "$(kubectl config current-context)" = {{.KUBE_CONTEXT | shellQuote}}
+        msg: Switch kubectl to the selected KUBE_CONTEXT before using Zarf
+      - sh: test -n {{.BASE_VERSION | shellQuote}} || test {{.BASE_PACKAGE | shellQuote}} != 'oci://ghcr.io/opendefence/base/opendefence-base:'
+        msg: Set BASE_VERSION or BASE_PACKAGE before installing the base
+    cmds:
+      - zarf package deploy {{.BASE_PACKAGE | shellQuote}} --connected --confirm {{if .BASE_ISSUER}}--set-values {{printf "issuer.type=%s" .BASE_ISSUER | shellQuote}}{{end}} {{if .BASE_VALUES_FILE}}--values {{.BASE_VALUES_FILE | shellQuote}}{{end}}
+
+  remove:
+    aliases: [down]
+    desc: Remove the base package from the selected current kube-context
+    preconditions:
+      - sh: command -v zarf >/dev/null
+        msg: zarf is not on PATH
+      - sh: command -v kubectl >/dev/null
+        msg: kubectl is not on PATH
+      - sh: test "$(kubectl config current-context)" = {{.KUBE_CONTEXT | shellQuote}}
+        msg: Switch kubectl to the selected KUBE_CONTEXT before using Zarf
+    cmds:
+      - zarf package remove opendefence-base --confirm
+
+  status:
+    desc: List Zarf packages in the selected current kube-context
+    preconditions:
+      - sh: command -v zarf >/dev/null
+        msg: zarf is not on PATH
+      - sh: command -v kubectl >/dev/null
+        msg: kubectl is not on PATH
+      - sh: test "$(kubectl config current-context)" = {{.KUBE_CONTEXT | shellQuote}}
+        msg: Switch kubectl to the selected KUBE_CONTEXT before using Zarf
+    cmds:
+      - zarf package list
+
+  export-ca:
+    desc: Print the public root CA certificate as PEM for browser trust
+    silent: true
+    preconditions:
+      - sh: command -v kubectl >/dev/null
+        msg: kubectl is not on PATH
+      - sh: command -v base64 >/dev/null
+        msg: base64 is not on PATH
+    cmds:
+      - |
+        set -eu
+        certificate=$(kubectl --context {{.KUBE_CONTEXT | shellQuote}} -n cert-manager get secret public-root-secret -o jsonpath='{.data.ca\.crt}')
+        test -n "$certificate" || { echo 'No public root CA certificate found; use issuer.type=ca' >&2; exit 1; }
+        printf '%s' "$certificate" | base64 --decode

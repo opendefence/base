@@ -12,6 +12,12 @@ includes:
     aliases: [c]
     taskfile: ./taskfiles/cluster.yaml
     dir: "{{.ROOT_DIR}}"
+  base:
+    taskfile: ./taskfiles/base.yaml
+    dir: "{{.ROOT_DIR}}"
+  build:
+    taskfile: ./taskfiles/build.yaml
+    dir: "{{.ROOT_DIR}}"
 
 tasks:
   default:
@@ -21,13 +27,15 @@ tasks:
       - task --list
 
   up:
-    desc: Start the registries and the kind cluster
+    aliases: [dev]
+    desc: Start the registries, kind cluster, and base operators
     cmds:
       - task: registries:up
       - task: cluster:create
       - task: registries:connect
       - task: cluster:configure-mirrors
       - task: cluster:document-local-registry
+      - task: build:deploy
 
   down:
     desc: Delete the kind cluster and leave the registries running
@@ -43,7 +51,8 @@ tasks:
 
   status:
     aliases: [s]
-    desc: Show cluster and registry status
+    desc: Show cluster, registry, and base package status
     cmds:
       - task: cluster:status
       - task: registries:status
+      - task: base:status
