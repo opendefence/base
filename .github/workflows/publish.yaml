@@ -61,28 +61,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish and sign version and latest
+      - name: Sign and publish version and latest
         run: |
           set -euo pipefail
-          registry="ghcr.io/opendefence/base"
+          # Keyless signature from the Actions OIDC token, stored in the archive.
+          zarf package sign "$PACKAGE" --keyless --confirm
           zarf package publish "$PACKAGE" oci://ghcr.io/opendefence \
             --tag "$VERSION_TAG" --confirm
           zarf package publish "$PACKAGE" oci://ghcr.io/opendefence \
             --tag latest --confirm
-          version_ref="${registry}:${VERSION_TAG}"
-          latest_ref="${registry}:latest"
-          version_digest="${version_ref%:*}@$(zarf tools registry digest "$version_ref")"
-          latest_digest="${latest_ref%:*}@$(zarf tools registry digest "$latest_ref")"
-          # Keyless signature from the Actions OIDC token. Cosign signs the digest.
-          cosign sign --yes "$version_digest"
-          if [[ "$latest_digest" != "$version_digest" ]]; then
-            cosign sign --yes "$latest_digest"
-          fi
           {
             printf '## Published Zarf package\n\n'
-            printf -- "- \`%s\`\n" "$version_ref" "$latest_ref"
-            printf -- "- signed: \`%s\`\n" "$version_digest"
-            if [[ "$latest_digest" != "$version_digest" ]]; then
-              printf -- "- signed: \`%s\`\n" "$latest_digest"
-            fi
+            printf -- "- \`ghcr.io/opendefence/base:%s\`\n" "$VERSION_TAG"
+            printf -- "- \`ghcr.io/opendefence/base:latest\`\n"
           } >> "$GITHUB_STEP_SUMMARY"
