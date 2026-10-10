@@ -167,6 +167,14 @@ vars:
 
 Run `task base:install`, or override `BASE_PACKAGE` with an archive/OCI reference. For non-kind targets, set `KUBE_CONTEXT` explicitly. The registry and cluster includes remain remote-safe; the build include is repo-local.
 
+## GitHub Actions
+
+Do not edit `.github/workflows/actions.lock` by hand. When a workflow adds or removes a `uses` dependency, update the lock:
+
+```sh
+gh actions-lock
+```
+
 ## Syntax checks
 
 ```sh
