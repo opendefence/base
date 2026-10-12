@@ -3,7 +3,7 @@ version: "3"
 vars:
   CLUSTER_NAME: '{{.CLUSTER_NAME | default "opendefence-dev"}}'
   KUBE_CONTEXT: '{{.KUBE_CONTEXT | default (printf "kind-%s" .CLUSTER_NAME)}}'
-  BASE_VERSION: '{{.BASE_VERSION | default ""}}'
+  BASE_VERSION: '{{.BASE_VERSION | default "latest"}}'
   BASE_PACKAGE: '{{.BASE_PACKAGE | default (printf "oci://ghcr.io/opendefence/base:%s" .BASE_VERSION)}}'
   BASE_ISSUER: '{{.BASE_ISSUER | default ""}}'
   BASE_VALUES_FILE: '{{.BASE_VALUES_FILE | default ""}}'
