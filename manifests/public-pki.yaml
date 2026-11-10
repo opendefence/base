@@ -28,9 +28,12 @@ spec:
   isCA: true
   commonName: {{ .Values.issuer.ca.commonName | quote }}
   secretName: public-root-secret
+  # A new key or an expired CA makes every client distrust the server certificates
+  duration: 87600h
   privateKey:
     algorithm: ECDSA
     size: 256
+    rotationPolicy: Never
   issuerRef:
     name: selfsigned-issuer
     kind: ClusterIssuer
