@@ -3,3 +3,6 @@ identity:
   issuer:
     scheme: kubernetes.io/tls
 disableHeartBeat: true
+proxy:
+  # A meshed port accepts only its kubelet probes until a Server and an AuthorizationPolicy allow callers
+  defaultInboundPolicy: deny
