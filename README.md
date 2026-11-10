@@ -106,8 +106,9 @@ server = "https://ghcr.io"
 
 The downstream contract is:
 
-- `ClusterIssuer/public-issuer` always selects the public certificate issuer.
+- `ClusterIssuer/public-issuer` always selects the public certificate issuer. Use it for server certificates.
 - `ClusterIssuer/internal-root-issuer` signs mesh identity certificates from the internal root in `cert-manager`.
+- `ClusterIssuer/client-issuer` signs user client certificates from its own root in `cert-manager`. It exists with every `issuer.type`. Base publishes the CA certificate, without the key, as Secret `client-ca` (key `ca.crt`) in `traefik-system`. Use it to verify client certificates.
 - `issuer.type: ca` creates `public-root-secret` in `cert-manager`, the local root that `public-issuer` signs with. Hostnames, their `Certificate` objects, and Traefik's default `TLSStore` belong to core, which requests them from `public-issuer`.
 - Traefik uses hostPorts 80/443, a ClusterIP service, HTTPS redirect, JSON access logs, Linkerd injection, and a Recreate strategy. No Go plugins or entrypoint middlewares are installed.
 

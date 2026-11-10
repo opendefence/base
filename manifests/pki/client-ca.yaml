@@ -1,0 +1,42 @@
+# Signs user client certificates. Separate from public-issuer, which signs server certificates.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: client-root-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: OpenDefence Client Root CA
+  secretName: client-root-secret
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: client-issuer
+spec:
+  ca:
+    secretName: client-root-secret
+---
+# The CA certificate without its key, for Traefik to verify client certificates
+apiVersion: trust.cert-manager.io/v1alpha1
+kind: Bundle
+metadata:
+  name: client-ca
+spec:
+  sources:
+    - secret:
+        name: client-root-secret
+        key: tls.crt
+  target:
+    secret:
+      key: ca.crt
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: traefik-system

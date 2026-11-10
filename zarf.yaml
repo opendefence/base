@@ -57,6 +57,7 @@ components:
           - manifests/pki/selfsigned-issuer.yaml
           - manifests/pki/internal-root-ca.yaml
           - manifests/pki/internal-root-issuer.yaml
+          - manifests/pki/client-ca.yaml
       - name: public-pki
         template: true
         files:
@@ -65,6 +66,10 @@ components:
       - apiVersion: cert-manager.io/v1
         kind: Certificate
         name: internal-root-ca
+        namespace: cert-manager
+      - apiVersion: cert-manager.io/v1
+        kind: Certificate
+        name: client-root-ca
         namespace: cert-manager
   - name: linkerd-identity
     required: true

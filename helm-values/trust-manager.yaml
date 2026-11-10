@@ -1,3 +1,7 @@
 app:
   trust:
     namespace: cert-manager
+secretTargets:
+  enabled: true
+  authorizedSecrets:
+    - client-ca
