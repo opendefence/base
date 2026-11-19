@@ -108,7 +108,7 @@ The downstream contract is:
 
 - `ClusterIssuer/public-issuer` always selects the public certificate issuer. Use it for server certificates.
 - `ClusterIssuer/internal-root-issuer` signs mesh identity certificates from the internal root in `cert-manager`.
-- `ClusterIssuer/client-issuer` signs user client certificates from its own root in `cert-manager`. It exists with every `issuer.type`. Base publishes the CA certificate, without the key, as Secret `client-ca` (key `ca.crt`) in `traefik-system`. Use it to verify client certificates.
+- Base creates the client CA root as Secret `client-root-secret` in `cert-manager`. It exists with every `issuer.type`. Core signs user client certificates with it through its own issuer. Base publishes the CA certificate, without the key, as Secret `client-ca` (key `ca.crt`) in `traefik-system`. Use it to verify client certificates.
 - `issuer.type: ca` creates `public-root-secret` in `cert-manager`, the local root that `public-issuer` signs with. Hostnames, their `Certificate` objects, and Traefik's default `TLSStore` belong to core, which requests them from `public-issuer`.
 - Linkerd denies inbound traffic to meshed pods by default. Kubelet probes stay allowed. A meshed workload must add a `Server` and an `AuthorizationPolicy` for each port that other pods call. Ports in `config.linkerd.io/skip-inbound-ports` and pods outside the mesh are not affected.
 - Traefik uses hostPorts 80/443, a ClusterIP service, HTTPS redirect, JSON access logs, Linkerd injection, and a Recreate strategy. No Go plugins or entrypoint middlewares are installed.
