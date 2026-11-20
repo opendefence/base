@@ -102,7 +102,7 @@ server = "https://ghcr.io"
 
 ## Base package
 
-`zarf.yaml` is the single package definition, named `base`. Components deploy sequentially: CloudNativePG, cert-manager, External Secrets, Traefik/Gateway API CRDs, trust-manager, PKI, Linkerd identity, Linkerd, then Traefik. Chart pins live in `zarf.yaml`; chart configuration lives in `helm-values/`, and OpenDefence resources are raw YAML in `manifests/`. Only `manifests/public-pki.yaml` uses Go templates.
+`zarf.yaml` is the single package definition, named `base`. Components deploy sequentially: CloudNativePG, cert-manager, External Secrets, trust-manager, PKI, Linkerd identity, Linkerd, then Traefik. Chart pins live in `zarf.yaml`; chart configuration lives in `helm-values/`, and OpenDefence resources are raw YAML in `manifests/`. Only `manifests/public-pki.yaml` uses Go templates.
 
 The downstream contract is:
 
@@ -112,6 +112,7 @@ The downstream contract is:
 - `issuer.type: ca` creates `public-root-secret` in `cert-manager`, the local root that `public-issuer` signs with. Hostnames, their `Certificate` objects, and Traefik's default `TLSStore` belong to core, which requests them from `public-issuer`.
 - Linkerd denies inbound traffic to meshed pods by default. Kubelet probes stay allowed. A meshed workload must add a `Server` and an `AuthorizationPolicy` for each port that other pods call. Ports in `config.linkerd.io/skip-inbound-ports` and pods outside the mesh are not affected.
 - Traefik uses hostPorts 80/443, a ClusterIP service, HTTPS redirect, JSON access logs, Linkerd injection, and a Recreate strategy. No Go plugins or entrypoint middlewares are installed.
+- The Traefik chart installs its CRDs on first install only; rebuild the cluster with `task reset` after a Traefik upgrade. Only a `TLSOption` or `TLSStore` named `default` in `traefik-system` applies to the whole cluster. All routers for one host must use the same TLS options; otherwise Traefik rejects the conflict instead of falling back to the default options. Traefik deletes request headers with alias characters in their names, such as underscores, so a client cannot pass `X_Forwarded_Tls_Client_Cert` past header middlewares.
 
 Export the local public CA and import the resulting PEM into your browser or operating system trust store:
 
