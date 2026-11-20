@@ -30,15 +30,6 @@ components:
         namespace: external-secrets-system
         version: 1.1.1
         url: https://charts.external-secrets.io/
-  - name: traefik-crds
-    required: true
-    charts:
-      - name: traefik-crds
-        namespace: traefik-system
-        version: 1.13.0
-        url: https://traefik.github.io/charts
-        valuesFiles:
-          - helm-values/traefik-crds.yaml
   - name: trust-manager
     required: true
     charts:
@@ -95,8 +86,6 @@ components:
         namespace: linkerd
         version: 1.8.0
         url: https://helm.linkerd.io/stable
-        valuesFiles:
-          - helm-values/linkerd-crds.yaml
       - name: linkerd-control-plane
         namespace: linkerd
         version: 1.16.11
@@ -108,7 +97,7 @@ components:
     charts:
       - name: traefik
         namespace: traefik-system
-        version: 38.0.1
+        version: 42.4.0
         url: https://traefik.github.io/charts
         valuesFiles:
           - helm-values/traefik.yaml

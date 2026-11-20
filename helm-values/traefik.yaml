@@ -3,22 +3,30 @@ deployment:
     linkerd.io/inject: enabled
     config.linkerd.io/proxy-await: enabled
     config.linkerd.io/skip-inbound-ports: "80,443"
+core:
+  # Fail closed when routers on one host disagree on TLS options, so clientAuth is never dropped
+  strictTLSOptions: true
+global:
+  # Drop aliased headers such as X_Forwarded_Tls_Client_Cert, so header middlewares can't be bypassed
+  aliasHeadersStrategy: delete
 updateStrategy:
   type: Recreate
   rollingUpdate: null
 providers:
   kubernetesCRD:
     allowCrossNamespace: true
-logs:
-  access:
-    enabled: true
-    format: json
-    fields:
-      headers:
-        names:
-          X-Request-ID: keep
+    # Only the default TLSOption and TLSStore in traefik-system apply cluster-wide
+    defaultTLSResourcesNamespace: traefik-system
+accessLog:
+  enabled: true
+  format: json
+  fields:
+    headers:
+      names:
+        X-Request-ID: keep
 service:
-  type: ClusterIP
+  spec:
+    type: ClusterIP
 ports:
   web:
     port: 80
@@ -26,11 +34,12 @@ ports:
     expose:
       default: true
     exposedPort: 80
-    redirections:
-      entryPoint:
-        to: websecure
-        scheme: https
-        permanent: true
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
   websecure:
     port: 443
     hostPort: 443
