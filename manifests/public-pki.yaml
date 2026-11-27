@@ -13,6 +13,10 @@ spec:
       - http01:
           ingress:
             ingressClassName: traefik
+            ingressTemplate:
+              metadata:
+                annotations:
+                  traefik.ingress.kubernetes.io/router.entrypoints: web
 {{- else }}
   ca:
     secretName: public-root-secret
