@@ -13,6 +13,10 @@ This repository packages the platform operators for OpenDefence core as a Zarf p
 
 The registry, cluster, and base includes must work independently, including remotely without companion files. The build include requires the checkout. The default kind configuration lives inline in `taskfiles/cluster.yaml` and is generated on stdin. `KIND_CONFIG_FILE` optionally selects a configuration supplied by the consuming repository; do not add a required companion configuration file.
 
+## Every deployment is new
+
+No deployment lives long, so no existing certificates, databases, or resources need compatibility. Do not add migrations or upgrade paths for changes in this repository.
+
 ## Keep it small and readable
 
 Prefer direct commands, Task `status:`, `requires:`, simple preconditions, and explicit operation-specific helpers. Accept small YAML repetition. Do not add action dispatchers, exhaustive input validators, configuration inspection frameworks, or drift reconciliation. Configuration is trusted developer input; let the underlying tools report invalid settings.
